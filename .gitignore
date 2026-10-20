@@ -1,0 +1,57 @@
+# Personal notes / planning (not part of the deliverable repo)
+notes/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# Datasets & generated data (keep only scripts in data/)
+data/*
+!data/.gitkeep
+!data/*.py
+!data/README.md
+datasets/
+*.zip
+*.tar
+*.tar.gz
+
+# Model weights & exported engines
+*.pt
+*.pth
+*.onnx
+*.engine
+*.trt
+*.plan
+weights/
+
+# Experiment tracking & training outputs
+wandb/
+runs/
+outputs/
+
+# CARLA recordings / ROS bags
+recordings/
+*.db3
+*.mcap
+_out/
+
+# ROS2 workspace build artifacts
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
+
+# Media (demo videos go to Drive, not git)
+*.mp4
+*.avi
+
+# Env / IDE / OS
+.env
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

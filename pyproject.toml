@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "perception"
+version = "0.1.0"
+description = "Camera perception stack: detection, tracking, lanes, depth and distance for CARLA + ROS2"
+requires-python = ">=3.10"
+# Core only. ML / simulator dependencies live in environment.yml.
+dependencies = ["numpy", "omegaconf>=2.3", "pyyaml"]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff", "pre-commit"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["perception*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "gpu: needs a CUDA GPU",
+    "carla: needs a running CARLA server",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+src = ["src", "tests"]
+extend-exclude = ["ros2_ws/build", "ros2_ws/install", "notebooks"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]

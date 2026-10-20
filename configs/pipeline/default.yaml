@@ -1,0 +1,24 @@
+# Default pipeline. Override any key from the command line, e.g.
+#   python scripts/run_pipeline.py --config configs/pipeline/default.yaml tracker.type=deepsort
+# Stage types refer to names registered with @register(...); see docs/DESIGN.md §4.
+detector:
+  type: yolo
+  weights: weights/yolo11s_bdd.pt   # .pt / .onnx / .engine
+  conf: 0.35
+  classes: [car, truck, bus, person, rider, bicycle, motorcycle]
+tracker:
+  type: bytetrack
+  track_buffer: 30
+lanes:
+  type: classical
+depth:
+  type: midas
+  model: MiDaS_small
+  backend: torch                    # torch | onnx | tensorrt
+distance:
+  type: fused
+policy:
+  type: emergency_brake
+  ttc_threshold_s: 2.0
+  min_distance_m: 6.0
+depth_every_n: 1
