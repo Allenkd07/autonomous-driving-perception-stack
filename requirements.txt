@@ -1,0 +1,29 @@
+# Windows-side env: training, notebooks, benchmarking, CARLA client.
+# Python 3.10 to match the CARLA 0.9.15 wheel and ROS2 Humble (Ubuntu 22.04).
+#   py -3.10 -m venv .venv
+#   .venv\Scripts\activate
+#   pip install -r requirements.txt
+--extra-index-url https://download.pytorch.org/whl/cu124
+torch==2.5.1
+torchvision==0.20.1
+ultralytics>=8.3
+opencv-python>=4.10
+numpy<2
+timm  # needed by MiDaS via torch.hub
+wandb
+onnx
+onnxruntime-gpu
+carla==0.9.15
+pandas
+matplotlib
+seaborn
+tqdm
+pyyaml
+omegaconf
+jupyter
+pytest
+ruff
+pre-commit
+-e .  # installs the perception package
+# TensorRT: install separately once CUDA is confirmed working:
+#   pip install tensorrt

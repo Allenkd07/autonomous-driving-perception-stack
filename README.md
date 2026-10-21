@@ -51,15 +51,21 @@ Tested on Windows 11 + NVIDIA RTX 3050 (6 GB). CARLA runs natively on Windows an
 
 ### 1. Python environment (Windows)
 
-```bash
-conda env create -f environment.yml
-conda activate perception
+Requires Python 3.10 (the CARLA 0.9.15 client has no wheels for newer versions). Install it from [python.org](https://www.python.org/downloads/release/python-31011/); it can sit alongside other Python versions and is selected with the `py` launcher.
+
+```powershell
+py -3.10 -m venv .venv
+.venv\Scripts\activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
 python -c "import torch; print(torch.cuda.is_available())"   # should print True
 pytest
 pre-commit install   # runs ruff on every commit
 ```
 
-The env installs this repo as an editable package (`pip install -e .`), so `import perception` works from scripts, notebooks and ROS nodes.
+If PowerShell refuses to run the activate script, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once.
+
+`requirements.txt` installs this repo as an editable package (`pip install -e .`), so `import perception` works from scripts, notebooks and ROS nodes.
 
 Run the pipeline with a config, overriding any key from the command line (script arrives with the first stage implementations):
 

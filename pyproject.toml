@@ -7,7 +7,7 @@ name = "perception"
 version = "0.1.0"
 description = "Camera perception stack: detection, tracking, lanes, depth and distance for CARLA + ROS2"
 requires-python = ">=3.10"
-# Core only. ML / simulator dependencies live in environment.yml.
+# Core only. ML / simulator dependencies live in requirements.txt.
 dependencies = ["numpy", "omegaconf>=2.3", "pyyaml"]
 
 [project.optional-dependencies]
