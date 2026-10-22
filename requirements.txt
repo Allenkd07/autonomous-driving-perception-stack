@@ -21,7 +21,7 @@ tqdm
 pyyaml
 omegaconf
 jupyter
-pytest
+pytest>=8  # Ubuntu ships pytest 6 (ros-dev-tools); the venv needs a newer one
 ruff
 pre-commit
 -e .  # installs the perception package
