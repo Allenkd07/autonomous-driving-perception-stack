@@ -70,12 +70,19 @@ def main():
             f"Saved {args.frames} frames to {out_dir.resolve()} ({args.frames / elapsed:.1f} FPS incl. I/O)"
         )
     finally:
+        # Release the vehicle from the Traffic Manager and tick before destroying it;
+        # otherwise the TM thread (hosted in this process) aborts on the deleted actor.
         for actor in actors:
             if isinstance(actor, carla.Sensor):
                 actor.stop()
+            elif isinstance(actor, carla.Vehicle):
+                actor.set_autopilot(False, traffic_manager.get_port())
+        world.tick()
+        for actor in actors:
             actor.destroy()
-        world.apply_settings(original_settings)
+        world.tick()
         traffic_manager.set_synchronous_mode(False)
+        world.apply_settings(original_settings)
         print("Cleaned up.")
 
 
