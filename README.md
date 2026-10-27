@@ -4,18 +4,19 @@ A camera-based perception pipeline that detects vehicles, pedestrians and lanes,
 
 ## Architecture
 
-```
- CARLA Server (Windows)
+```text
+ CARLA server (Windows, sync mode)
         │  carla Python API (localhost:2000)
         ▼
- [carla_bridge_node] ──/camera/image_raw──┬──► [detector_tracker_node]  YOLO (TensorRT) + ByteTrack
-                                          ├──► [lane_node]              OpenCV | segmentation model
-                                          └──► [depth_node]             MiDaS (TensorRT)
-                                                         ▼
-                              [fusion_node]  per-track distance + time-to-collision
-                                                         ▼
-                              [decision_node] emergency brake ─► /vehicle/control ─► CARLA
+ [carla_bridge_node] ──/camera/image_raw──► [perception_node]  one process, one CUDA context
+        ▲                                     PerceptionPipeline:
+        │                                     YOLO + ByteTrack → lanes → MiDaS → distance / TTC
+        │                                          │ /perception/objects, /perception/lanes
+        │ /vehicle/control                         ▼
+        └───────────────────────────────── [decision_node]  emergency brake
 ```
+
+All model stages run inside one ROS2 node to save GPU memory; they stay separate in code behind common interfaces and are swapped through config.
 
 ## Tech stack
 
