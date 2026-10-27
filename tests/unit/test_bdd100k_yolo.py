@@ -52,12 +52,22 @@ def test_clean_boxes_drops_other_classes_and_tiny_boxes():
     assert list(kept.category) == ["car", "traffic light"]
 
 
+def test_clean_boxes_renames_bdd_categories_to_class_names():
+    boxes = make_boxes([("a", "bike", 0, 0, 50, 40), ("a", "motor", 0, 0, 50, 40)])
+    boxes["category"] = pd.Categorical(boxes.category, categories=["bike", "motor", "train"])
+
+    kept = clean_boxes(boxes)
+
+    assert list(kept.category) == ["bicycle", "motorcycle"]
+    assert set(kept.category) <= set(CLASSES)
+
+
 @pytest.fixture
 def pool():
     ids = pd.Series([f"img{i:03d}" for i in range(100)])
     boxes = make_boxes(
         [(i, "car", 0, 0, 10, 10) for i in ids]
-        + [(i, "motor", 0, 0, 10, 10) for i in ids[:5]]
+        + [(i, "motorcycle", 0, 0, 10, 10) for i in ids[:5]]
         + [(i, "rider", 0, 0, 10, 10) for i in ids[3:8]]
     )
     return ids, boxes

@@ -12,17 +12,24 @@ import pandas as pd
 from perception.io.bdd100k import IMAGE_HEIGHT, IMAGE_WIDTH
 
 # Class id = position in this tuple. `train` is left out: 136 train-split boxes, none in CARLA.
-CLASSES = ("car", "truck", "bus", "person", "rider", "bike", "motor", "traffic light", "traffic sign")
-RARE_CLASSES = ("bike", "rider", "motor")
+CLASSES = (
+    "car", "truck", "bus", "person", "rider", "bicycle", "motorcycle", "traffic light", "traffic sign"
+)  # fmt: skip
+RARE_CLASSES = ("bicycle", "rider", "motorcycle")
+# BDD100K name -> class name. COCO's names, so that fine-tuning from COCO weights keeps what the
+# model already knows about these classes (Ultralytics matches pretrained class rows by name).
+RENAME = {"bike": "bicycle", "motor": "motorcycle"}
 MIN_BOX_PX = 2.0
 
 
 def clean_boxes(boxes: pd.DataFrame) -> pd.DataFrame:
-    """Keep boxes of the training classes that are at least MIN_BOX_PX wide and tall."""
+    """Rename categories to class names and keep boxes of the training classes that are at least
+    MIN_BOX_PX wide and tall."""
+    category = boxes.category.astype(str).replace(RENAME)
     w = boxes.x2 - boxes.x1
     h = boxes.y2 - boxes.y1
-    keep = boxes.category.isin(CLASSES) & (w >= MIN_BOX_PX) & (h >= MIN_BOX_PX)
-    return boxes[keep]
+    keep = category.isin(CLASSES) & (w >= MIN_BOX_PX) & (h >= MIN_BOX_PX)
+    return boxes.assign(category=category)[keep]
 
 
 def select_train_subset(
@@ -34,7 +41,7 @@ def select_train_subset(
 ) -> list[str]:
     """Pick `size` images: every image with a rare class first, then a random fill.
 
-    Rare-class images are otherwise too scarce to learn from (bike, rider and motor each appear
+    Rare-class images are otherwise too scarce to learn from (bicycle, rider and motorcycle each appear
     in 3-6% of images). If there are more rare-class images than `size`, a random `size` of them.
     """
     rng = np.random.default_rng(seed)

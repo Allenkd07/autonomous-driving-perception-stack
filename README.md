@@ -118,9 +118,11 @@ wandb login
 
 ## Datasets
 
-- **BDD100K**: detection, lane and tracking labels (main training data)
-- **CARLA synthetic frames**: depth ground truth for evaluating distance estimates
+- **BDD100K**: detection boxes and lane markings (detector training and evaluation, lane evaluation)
+- **CARLA synthetic frames**: tracking IDs and depth ground truth (tracking and distance evaluation)
 - **KITTI** (optional): additional depth/distance evaluation
+
+See [docs/DATA.md](docs/DATA.md) for sources, processing, the class set and what the data contains.
 
 ## Results
 

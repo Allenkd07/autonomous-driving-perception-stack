@@ -1,0 +1,18 @@
+# Fine-tune COCO-pretrained YOLO11s on the BDD100K train subset (docs/DATA.md).
+#   python scripts/train_detector.py --config configs/train/yolo11s_bdd100k.yaml epochs=1 fraction=0.05
+# Every key except `weights` is passed to Ultralytics' model.train(); see its docs for the rest.
+weights: weights/yolo11s.pt
+data: data/bdd100k/yolo/bdd100k.yaml
+imgsz: 640
+epochs: 50
+patience: 10          # stop early if val mAP50-95 hasn't improved for this many epochs
+batch: 16             # fits in 6 GB at 640 px with AMP
+workers: 6            # JPEG decoding is the bottleneck; more workers run out of WSL's RAM
+cache: false          # 20k images don't fit in RAM
+cos_lr: true
+close_mosaic: 10      # last epochs without mosaic, closer to the val images
+seed: 0
+project: runs/train
+name: yolo11s_bdd100k
+exist_ok: false
+plots: true
