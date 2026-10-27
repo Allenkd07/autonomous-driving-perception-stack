@@ -15,7 +15,8 @@ onnx
 onnxruntime-gpu
 carla==0.9.15
 pandas
-matplotlib
+pyarrow  # Parquet files for the dataset index
+matplotlib>=3.8  # Ubuntu ships 3.5 (ROS desktop), too old for the notebook inline backend
 seaborn
 tqdm
 pyyaml
