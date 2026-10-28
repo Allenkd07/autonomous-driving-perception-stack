@@ -19,6 +19,8 @@ include = ["perception*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# With ROS sourced, Humble's launch_testing plugin (written for pytest 6) breaks pytest 8; not used here
+addopts = "-p no:launch_testing -p no:launch_ros"
 markers = [
     "gpu: needs a CUDA GPU",
     "carla: needs a running CARLA server",
@@ -27,7 +29,7 @@ markers = [
 [tool.ruff]
 line-length = 110
 target-version = "py310"
-src = ["src", "tests"]
+src = ["src", "tests", "ros2_ws/src/perception_ros"]
 extend-exclude = ["ros2_ws/build", "ros2_ws/install", "notebooks"]
 
 [tool.ruff.format]

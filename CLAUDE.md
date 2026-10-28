@@ -20,12 +20,16 @@ pre-commit run --all-files   # hooks only check staged files on commit
 
 # ROS2 build: ROS sourced, venv NOT active
 cd ros2_ws && colcon build --symlink-install && source install/setup.bash
+
+# ROS-side tests (message conversions): ROS and the workspace sourced, then the venv
+pytest ros2_ws/src/perception_ros/test
 ```
 
 The `.venv` in WSL is created with `--system-site-packages` so it sees ROS2's `rclpy`. Side effects:
 
 - pip sees Ubuntu's `keyring` and hangs on D-Bus. After creating the venv: `pip config --site set global.keyring-provider disabled`.
 - Ubuntu's old system pytest shadows the venv one unless `pytest>=8` is installed in the venv (it is pinned in `requirements.txt`).
+- With ROS sourced, Humble's `launch_testing` pytest plugins (written for pytest 6) break pytest 8; `pyproject.toml` disables them.
 
 Calling WSL from Windows: set `MSYS_NO_PATHCONV=1` in Git Bash so Linux paths aren't rewritten, and put anything with `$var` or `$(...)` in a script file, since `wsl.exe` expands it before `bash -c` sees it.
 
