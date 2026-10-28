@@ -4,7 +4,7 @@
 detector:
   type: yolo
   weights: weights/yolo11s_bdd100k.pt   # .pt / .onnx / .engine
-  conf: 0.35
+  conf: 0.1                         # low: ByteTrack's second round matches 0.1-0.25 detections
   classes: [car, truck, bus, person, rider, bicycle, motorcycle]
 tracker:
   type: bytetrack

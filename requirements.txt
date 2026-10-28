@@ -7,6 +7,7 @@
 torch==2.5.1
 torchvision==0.20.1
 ultralytics>=8.3
+lap>=0.5.12  # assignment solver for Ultralytics' trackers (ByteTrack)
 opencv-python>=4.10
 numpy<2
 timm  # needed by MiDaS via torch.hub
