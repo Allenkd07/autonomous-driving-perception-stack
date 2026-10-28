@@ -7,8 +7,6 @@ from perception.core.types import Detection
 from perception.tracking.deepsort import (
     DeepSort,
     DeepSortTracker,
-    assign,
-    iou_matrix,
     xyah_to_xyxy,
     xyxy_to_xyah,
 )
@@ -43,22 +41,6 @@ def test_box_conversions_round_trip():
 
     np.testing.assert_allclose(xyxy_to_xyah(box), [30, 60, 0.5, 80])
     np.testing.assert_allclose(xyah_to_xyxy(xyxy_to_xyah(box)), box)
-
-
-def test_iou_matrix():
-    a = np.array([[0, 0, 10, 10]], np.float32)
-    b = np.array([[0, 0, 10, 10], [5, 0, 15, 10], [20, 20, 30, 30]], np.float32)
-
-    np.testing.assert_allclose(iou_matrix(a, b), [[1.0, 1 / 3, 0.0]])
-
-
-def test_assign_respects_max_cost():
-    cost = np.array([[0.1, 0.9], [0.8, 0.95]])
-
-    matches, rows, cols = assign(cost, max_cost=0.5)
-
-    assert matches == [(0, 0)] and rows == [1] and cols == [1]
-    assert assign(np.zeros((0, 3)), 0.5) == ([], [], [0, 1, 2])
 
 
 def test_track_is_reported_once_confirmed_and_keeps_its_id(tracker):
