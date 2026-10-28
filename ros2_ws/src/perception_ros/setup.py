@@ -20,7 +20,9 @@ setup(
     description="ROS2 nodes wrapping the perception pipeline and the CARLA bridge",
     license="MIT",
     entry_points={
-        # Added in Phase 5: carla_bridge_node, perception_node, decision_node
-        "console_scripts": [],
+        "console_scripts": [
+            "perception_node = perception_ros.perception_node:main",
+            "decision_node = perception_ros.decision_node:main",
+        ],
     },
 )

@@ -17,7 +17,15 @@ from sensor_msgs.msg import CameraInfo as CameraInfoMsg
 from sensor_msgs.msg import Image
 from std_msgs.msg import Header
 
-from perception.core.types import CameraInfo, ControlCommand, Frame, LaneResult, ObjectState, Track
+from perception.core.types import (
+    CameraInfo,
+    ControlCommand,
+    Frame,
+    LaneResult,
+    ObjectState,
+    PerceptionOutput,
+    Track,
+)
 
 # encoding -> (channels, channel order to get BGR)
 ENCODINGS = {"bgr8": (3, [0, 1, 2]), "rgb8": (3, [2, 1, 0]), "bgra8": (4, [0, 1, 2]), "rgba8": (4, [2, 1, 0])}
@@ -133,6 +141,20 @@ def objects_from_msg(msg: TrackedObjectArray) -> list[ObjectState]:
         )
         for o in msg.objects
     ]
+
+
+def output_from_objects_msg(msg: TrackedObjectArray, frame_id: int = 0) -> PerceptionOutput:
+    """A PerceptionOutput for a decision policy, which only uses the objects and the time.
+
+    The decision side never receives the image or camera, so the frame has an empty image and no camera.
+    """
+    frame = Frame(
+        image=np.zeros((0, 0, 3), np.uint8),
+        timestamp=stamp_to_seconds(msg.header.stamp),
+        frame_id=frame_id,
+        camera=None,
+    )
+    return PerceptionOutput(frame=frame, objects=objects_from_msg(msg))
 
 
 def lanes_to_msg(lanes: LaneResult | None, header: Header) -> LaneInfo:
