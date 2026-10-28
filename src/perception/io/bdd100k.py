@@ -71,3 +71,34 @@ def parse_label_file(path: str | Path) -> tuple[dict, list[dict]]:
         "n_drivable": n_drivable,
     }
     return image, boxes
+
+
+def parse_polygons(path: str | Path) -> list[dict]:
+    """Return one record per poly2d object: lane markings (`lane/...`) and drivable areas (`area/...`).
+
+    `vertices` is a flat [x0, y0, x1, y1, ...] list and `types` the matching vertex types: "L" for a point
+    on the line, "C" for a cubic Bezier control point (two between consecutive "L" points).
+    """
+    with open(path, encoding="utf-8") as f:
+        label = json.load(f)
+
+    image_id = label["name"]
+    objects = label["frames"][0]["objects"] if label.get("frames") else []
+    polygons = []
+    for obj in objects:
+        if "poly2d" not in obj:
+            continue
+        kind, _, category = obj["category"].partition("/")
+        attrs = obj.get("attributes", {})
+        polygons.append(
+            {
+                "image_id": image_id,
+                "kind": kind,
+                "category": category,
+                "direction": attrs.get("direction", "none"),
+                "style": attrs.get("style", "none"),
+                "vertices": [float(c) for v in obj["poly2d"] for c in v[:2]],
+                "types": "".join(v[2] for v in obj["poly2d"]),
+            }
+        )
+    return polygons
