@@ -30,5 +30,9 @@ target-version = "py310"
 src = ["src", "tests"]
 extend-exclude = ["ros2_ws/build", "ros2_ws/install", "notebooks"]
 
+[tool.ruff.format]
+# Python blocks in the design docs are sketches (several fields per line, aligned comments)
+exclude = ["docs/**"]
+
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B"]
