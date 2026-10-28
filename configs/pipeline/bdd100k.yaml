@@ -1,0 +1,20 @@
+# Pipeline for BDD100K-style dashcam footage (1280x720). BDD100K has no depth or distance ground truth,
+# so distances come from the ground plane; the camera geometry is passed to the source (see
+# scripts/run_pipeline.py). Lane geometry from configs/lanes/classical_bdd100k.yaml.
+detector:
+  type: yolo
+  weights: weights/yolo11s_bdd100k.pt
+  conf: 0.1
+  classes: [car, truck, bus, person, rider, bicycle, motorcycle]
+tracker:
+  type: bytetrack
+  track_buffer: 30
+lanes:
+  type: classical
+  vanishing_point: [0.464, 0.4727]
+  bottom: 0.7567
+  lane_width: 0.425
+  extend_to: 0.8389
+depth: null
+distance:
+  type: ground_plane

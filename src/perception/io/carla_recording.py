@@ -29,6 +29,7 @@ import cv2
 import numpy as np
 import pandas as pd
 
+from perception.core.registry import register
 from perception.core.types import CameraInfo, Frame
 
 FRAME_NAME = "{:06d}"
@@ -166,6 +167,7 @@ def unlabelled_boxes(tag: np.ndarray, ids: np.ndarray, known_ids, min_px: int = 
     return np.array(boxes, np.float32).reshape(-1, 4)
 
 
+@register("source", "carla_recording")
 class CarlaRecording:
     """A recorded sequence: iterate it as a FrameSource, and ask for each frame's ground truth."""
 
