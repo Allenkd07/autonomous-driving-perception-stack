@@ -23,6 +23,7 @@ setup(
         "console_scripts": [
             "perception_node = perception_ros.perception_node:main",
             "decision_node = perception_ros.decision_node:main",
+            "player_node = perception_ros.player_node:main",
         ],
     },
 )

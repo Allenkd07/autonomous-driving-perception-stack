@@ -6,7 +6,7 @@ Camera perception stack (detection, tracking, lanes, depth, distance) that runs 
 
 - CARLA 0.9.15 server runs natively on Windows; everything else (perception, ROS2 Humble, training, TensorRT) runs in WSL2 Ubuntu 22.04 and reaches CARLA on `localhost:2000` through mirrored networking.
 - Keep the working copy on the Linux filesystem (`~/...`), not `/mnt/c`: git, file listing and writes there are 100× slower or worse. A Windows clone is only needed for Windows-side CARLA scripts and is refreshed with `git pull`.
-- ROS2 uses Cyclone DDS (`RMW_IMPLEMENTATION=rmw_cyclonedds_cpp`); the default Fast DDS hangs under WSL2 mirrored networking.
+- ROS2 uses Cyclone DDS (`RMW_IMPLEMENTATION=rmw_cyclonedds_cpp`); the default Fast DDS hangs under WSL2 mirrored networking. Don't set `ROS_LOCALHOST_ONLY=1` either: the mirrored loopback can't multicast, and every message larger than one DDS fragment (any camera image) is silently lost.
 - Target GPU is an RTX 3050 with 6 GB VRAM: stick to small models (YOLO n/s, MiDaS Small), TensorRT FP16, and CARLA at `-quality-level=Low`.
 
 ## Commands (from the repo root in WSL)
@@ -21,8 +21,11 @@ pre-commit run --all-files   # hooks only check staged files on commit
 # ROS2 build: ROS sourced, venv NOT active
 cd ros2_ws && colcon build --symlink-install && source install/setup.bash
 
-# ROS-side tests (message conversions): ROS and the workspace sourced, then the venv
+# ROS-side tests (message conversions, nodes): ROS and the workspace sourced, then the venv
 pytest ros2_ws/src/perception_ros/test
+# Nodes need the venv's python (the installed scripts' shebang is /usr/bin/python3): use the launch files,
+# or ros2 run --prefix python3 perception_ros <node>
+ros2 launch perception_ros offline.launch.py input:=<recording | image folder | video>
 ```
 
 The `.venv` in WSL is created with `--system-site-packages` so it sees ROS2's `rclpy`. Side effects:

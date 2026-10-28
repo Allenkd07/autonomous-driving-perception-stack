@@ -7,10 +7,10 @@ import time
 import pytest
 
 # Cyclone DDS, as everywhere in this project (Fast DDS hangs under WSL2 mirrored networking); a random domain
-# and localhost-only discovery keep tests from talking to any other running ROS graph
+# keeps tests from talking to any other running ROS graph. Not ROS_LOCALHOST_ONLY: under mirrored networking
+# the loopback can't multicast and every message bigger than one fragment (e.g. any image) is lost.
 os.environ.setdefault("RMW_IMPLEMENTATION", "rmw_cyclonedds_cpp")
 os.environ["ROS_DOMAIN_ID"] = str(random.randint(100, 200))
-os.environ["ROS_LOCALHOST_ONLY"] = "1"
 
 
 @pytest.fixture

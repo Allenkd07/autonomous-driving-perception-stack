@@ -19,19 +19,8 @@ from pathlib import Path
 import numpy as np
 
 from perception.core.config import load_config
-from perception.io import CarlaRecording, ImageFolderSource, VideoSink, VideoSource
+from perception.io import VideoSink, open_source
 from perception.pipeline import PerceptionPipeline
-
-
-def open_source(path: Path, args):
-    camera = {"fov_deg": args.fov, "height_m": args.camera_height, "pitch_deg": args.pitch}
-    if path.is_dir() and (path / "meta.json").exists():
-        recording = CarlaRecording(path)
-        return recording, float(recording.meta.get("fps", 20))
-    if path.is_dir():
-        return ImageFolderSource(path, fps=args.fps, **camera), args.fps
-    source = VideoSource(path, **camera)
-    return source, source.frame_rate
 
 
 def main() -> None:
@@ -50,7 +39,7 @@ def main() -> None:
     args, overrides = parser.parse_known_args()
 
     pipeline = PerceptionPipeline.from_config(load_config(args.config, overrides))
-    source, fps = open_source(args.input, args)
+    source, fps = open_source(args.input, args.fov, args.camera_height, args.pitch, args.fps)
     out = args.out or Path("runs/pipeline") / f"{args.input.stem}.mp4"
     sink = VideoSink(out, fps=fps, ttc_warning_s=args.ttc_warning)
 
