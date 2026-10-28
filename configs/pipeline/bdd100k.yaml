@@ -18,3 +18,4 @@ lanes:
 depth: null
 distance:
   type: ground_plane
+  auto_pitch: true                  # dashcam mountings differ: pitch from the lane lines
