@@ -43,6 +43,7 @@ def select_train_subset(
 
     Rare-class images are otherwise too scarce to learn from (bicycle, rider and motorcycle each appear
     in 3-6% of images). If there are more rare-class images than `size`, a random `size` of them.
+    With `rare_classes=()` it is a plain random sample, the baseline for measuring what oversampling buys.
     """
     rng = np.random.default_rng(seed)
     all_ids = np.sort(image_ids.unique())

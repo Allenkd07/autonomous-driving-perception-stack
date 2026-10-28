@@ -40,6 +40,7 @@ def main() -> None:
     cfg = OmegaConf.merge(OmegaConf.load(args.config), OmegaConf.from_dotlist(overrides))
     train_args = OmegaConf.to_container(cfg, resolve=True)
     weights = train_args.pop("weights")
+    dataset_artifact = train_args.pop("dataset_artifact", None)
     # Relative paths get nested under runs/detect/ by Ultralytics
     train_args["project"] = str(Path(train_args["project"]).resolve())
 
@@ -51,10 +52,11 @@ def main() -> None:
             project="perception-stack",
             job_type="train",
             name=train_args["name"],
-            config={"weights": weights, **train_args},
+            config={"weights": weights, "dataset_artifact": dataset_artifact, **train_args},
             tags=["phase2", "detector"],
         )
-        run.use_artifact("bdd100k-yolo:latest")
+        if dataset_artifact:
+            run.use_artifact(dataset_artifact)
 
     model = YOLO(args.resume or weights)
     if run is not None:

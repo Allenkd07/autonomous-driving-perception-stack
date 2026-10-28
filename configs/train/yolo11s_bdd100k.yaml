@@ -1,7 +1,8 @@
 # Fine-tune COCO-pretrained YOLO11s on the BDD100K train subset (docs/DATA.md).
 #   python scripts/train_detector.py --config configs/train/yolo11s_bdd100k.yaml epochs=1 fraction=0.05
-# Every key except `weights` is passed to Ultralytics' model.train(); see its docs for the rest.
+# Every key except `weights` and `dataset_artifact` is passed to Ultralytics' model.train(); see its docs.
 weights: weights/yolo11s.pt
+dataset_artifact: bdd100k-yolo:latest   # W&B input artifact for lineage; null if `data` isn't one
 data: data/bdd100k/yolo/bdd100k.yaml
 imgsz: 640
 epochs: 50

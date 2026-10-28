@@ -95,3 +95,12 @@ def test_subset_smaller_than_rare_pool(pool):
     subset = select_train_subset(ids, boxes, size=4, seed=0)
 
     assert len(subset) == 4 and set(subset) <= {f"img{i:03d}" for i in range(8)}
+
+
+def test_subset_without_rare_classes_is_plain_random(pool):
+    ids, boxes = pool
+
+    subset = select_train_subset(ids, boxes, size=20, rare_classes=(), seed=1)
+
+    assert len(subset) == 20 and len(set(subset)) == 20
+    assert not {f"img{i:03d}" for i in range(8)} <= set(subset)
