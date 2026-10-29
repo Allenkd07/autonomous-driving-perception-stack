@@ -8,10 +8,9 @@ reruns with other tracker settings skip detection. Reports MOTA, IDF1, ID switch
 and per group, plus each tracker's time per frame (including DeepSORT's appearance model).
 
 Scoring rules (perception.eval.tracking, perception.io.carla_recording):
-- ground truth is each actor's visible box; actors with fewer than --min-visible-px visible pixels, and
+- ground truth is each actor's visible box; objects with fewer than --min-visible-px visible pixels, and
   vehicles/people without a recorded actor (parked map cars, actors out of range), are ignore regions
-- rider predictions are left out: a CARLA bicycle or motorcycle is one actor with its rider, while
-  BDD100K (and so the detector) labels the rider separately
+- a bicycle's or motorcycle's rider is its own object (as BDD100K labels it), scored with two-wheelers
 """
 
 from __future__ import annotations
@@ -31,7 +30,7 @@ from perception.io.carla_recording import CarlaRecording, GroundTruthObject
 GROUPS = {
     "vehicle": {"car", "truck", "bus"},
     "person": {"person"},
-    "two-wheeler": {"bicycle", "motorcycle"},
+    "two-wheeler": {"bicycle", "motorcycle", "rider"},
 }
 GROUPS = {"all": set().union(*GROUPS.values()), **GROUPS}
 
@@ -82,12 +81,12 @@ def evaluate(
         objects, unlabelled = ground_truth[i]
         for group, classes in GROUPS.items():
             scored = [o for o in objects if o.class_name in classes and o.visible_px >= min_visible_px]
-            scored_ids = {o.actor_id for o in scored}
-            ignore = [o.box for o in objects if o.actor_id not in scored_ids]
+            scored_ids = {o.object_id for o in scored}
+            ignore = [o.box for o in objects if o.object_id not in scored_ids]
             preds = [t for t in tracks if t.class_name in classes]
             evaluators[group].update(
                 i,
-                [o.actor_id for o in scored],
+                [o.object_id for o in scored],
                 np.array([o.box for o in scored]),
                 [t.track_id for t in preds],
                 np.array([t.box for t in preds]),

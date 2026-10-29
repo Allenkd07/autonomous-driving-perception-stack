@@ -6,7 +6,8 @@ from perception.core import registry
 from perception.core.interfaces import FrameSource, Sink
 from perception.core.types import LaneResult, ObjectState, PerceptionOutput, Track
 from perception.io import ImageFolderSource, VideoSink, VideoSource
-from perception.viz.overlay import DANGER, draw_output, track_colour
+from perception.io.carla_recording import GroundTruthObject
+from perception.viz.overlay import DANGER, UNLABELLED, draw_ground_truth, draw_output, track_colour
 
 
 def write_video(path, frames: int, fps: float = 10.0, size=(160, 120)) -> None:
@@ -73,6 +74,33 @@ def test_overlay_draws_boxes_lanes_and_warnings(make_frame):
     assert tuple(danger[250, 300]) == DANGER  # in lane and TTC below 2 s
     assert calm[500, 400].any()  # tinted ego lane on a black frame
     assert not draw_output(output(make_frame, with_lanes=False))[500, 400].any()
+
+
+def test_ground_truth_overlay_tints_actor_and_unlabelled_pixels():
+    image = np.zeros((200, 300, 3), np.uint8)
+    actor_ids = np.full((200, 300), -1)
+    actor_ids[60:80, 20:40] = 7  # the actor (its label goes above y = 60)
+    dynamic = actor_ids >= 0
+    dynamic[120:140, 200:240] = True  # a parked car: no actor
+    actor = GroundTruthObject(
+        actor_id=7,
+        class_name="car",
+        box=np.array([20, 60, 40, 80], np.float32),
+        amodal_box=np.array([15, 55, 45, 85], np.float32),
+        visible_px=400,
+        distance_m=12.0,
+        velocity=np.zeros(3, np.float32),
+    )
+    parked = np.array([[200, 120, 240, 140]], np.float32)
+
+    drawn = draw_ground_truth(image, [actor], parked, dynamic, actor_ids)
+
+    half = (np.array(track_colour(7)) * 0.5).astype(np.uint8)
+    np.testing.assert_array_equal(drawn[70, 30], half)  # inside the actor: tinted in its colour
+    np.testing.assert_array_equal(drawn[130, 220], (np.array(UNLABELLED) * 0.5).astype(np.uint8))
+    assert tuple(drawn[70, 15]) == track_colour(7)  # amodal box edge
+    assert tuple(drawn[130, 200]) == UNLABELLED  # unlabelled box edge
+    assert not drawn[180, 150].any()
 
 
 def test_video_sink_writes_overlays(tmp_path, make_frame):
