@@ -185,7 +185,21 @@ def main() -> None:
     for folder in (RGB_DIR, INSTANCE_DIR, DEPTH_DIR):
         (args.out / folder).mkdir(parents=True, exist_ok=False)
 
+    # Stored before anything can fail, so a partial recording can still be saved if the server dies.
+    meta = {
+        "map": world.get_map().name,
+        "weather": args.weather,
+        "seed": args.seed,
+        "fps": round(1 / settings.fixed_delta_seconds),
+        "camera": {"width": args.width, "height": args.height, "fov": args.fov, "mount": CAMERA_MOUNT},
+        "max_range_m": args.max_range,
+        "spawn_radius_m": args.spawn_radius,
+        "two_wheeler_share": args.two_wheeler_share,
+        "ego_ignore_lights_pct": args.ego_ignore_lights,
+        "carla_version": client.get_server_version(),
+    }
     vehicles, walkers, controllers, cameras = [], [], [], {}
+    frame_rows, actor_rows, error = [], [], None
     try:
         spawn_points = world.get_map().get_spawn_points()
         rng.shuffle(spawn_points)
@@ -212,7 +226,7 @@ def main() -> None:
             f"{len(walkers)} walkers"
         )
 
-        frame_rows, actor_rows = [], []
+        meta.update(vehicles=len(vehicles) - 1, walkers=len(walkers))
         for tick in range(args.warmup + args.frames):
             world.tick()
             images = {name: q.get(timeout=args.timeout) for name, q in queues.items()}
@@ -263,27 +277,31 @@ def main() -> None:
             if index % 100 == 0:
                 print(f"frame {index}/{args.frames}")
 
-        pd.DataFrame(frame_rows).to_parquet(args.out / "frames.parquet", index=False)
-        pd.DataFrame(actor_rows).to_parquet(args.out / "actors.parquet", index=False)
-        meta = {
-            "map": world.get_map().name,
-            "weather": args.weather,
-            "seed": args.seed,
-            "fps": round(1 / settings.fixed_delta_seconds),
-            "camera": {"width": args.width, "height": args.height, "fov": args.fov, "mount": CAMERA_MOUNT},
-            "vehicles": len(vehicles) - 1,
-            "walkers": len(walkers),
-            "max_range_m": args.max_range,
-            "spawn_radius_m": args.spawn_radius,
-            "two_wheeler_share": args.two_wheeler_share,
-            "ego_ignore_lights_pct": args.ego_ignore_lights,
-            "carla_version": client.get_server_version(),
-        }
-        (args.out / "meta.json").write_text(json.dumps(meta, indent=2))
-        print(f"wrote {len(frame_rows)} frames, {len(actor_rows)} actor rows to {args.out}")
+    except BaseException as exc:
+        error = f"{type(exc).__name__}: {exc}"
+        client.set_timeout(30.0)  # the server may be gone: don't wait args.timeout on each cleanup call
+        raise
     finally:
-        # Same order as test_connection.py: release actors from the Traffic Manager and stop sensors and
-        # walker controllers, tick, then destroy, or the TM thread aborts on deleted actors.
+        if frame_rows:
+            save(args.out, frame_rows, actor_rows, {**meta, "frames": len(frame_rows), "error": error})
+        cleanup(client, world, tm, original_settings, cameras, controllers, walkers, vehicles)
+
+
+def save(out: Path, frame_rows: list, actor_rows: list, meta: dict) -> None:
+    """Write the recorded frames; a recording cut short by an error is kept, with "complete": false."""
+    pd.DataFrame(frame_rows).to_parquet(out / "frames.parquet", index=False)
+    pd.DataFrame(actor_rows).to_parquet(out / "actors.parquet", index=False)
+    meta = {**meta, "complete": meta["error"] is None}
+    (out / "meta.json").write_text(json.dumps(meta, indent=2))
+    status = "" if meta["complete"] else f" (INCOMPLETE: {meta['error']})"
+    print(f"wrote {len(frame_rows)} frames, {len(actor_rows)} actor rows to {out}{status}")
+
+
+def cleanup(client, world, tm, original_settings, cameras, controllers, walkers, vehicles) -> None:
+    """Same order as test_connection.py: release actors from the Traffic Manager and stop sensors and walker
+    controllers, tick, then destroy, or the TM thread aborts on deleted actors. Best effort: after a server
+    crash every call fails, which must not hide the original error."""
+    try:
         for camera in cameras.values():
             camera.stop()
         for controller in controllers:
@@ -298,6 +316,8 @@ def main() -> None:
         tm.set_synchronous_mode(False)
         world.apply_settings(original_settings)
         print("Cleaned up.")
+    except RuntimeError as exc:
+        print(f"Cleanup failed (server gone?): {exc}")
 
 
 if __name__ == "__main__":
