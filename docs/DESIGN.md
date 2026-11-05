@@ -130,7 +130,7 @@ Stateful stages (tracker, distance estimator with TTC history, lane temporal smo
 | --- | --- |
 | Detector | `YoloDetector` (weights: `.pt` / `.onnx` / `.engine`) |
 | Tracker | `ByteTrackTracker`, `DeepSortTracker` |
-| LaneDetector | `ClassicalLaneDetector` (OpenCV), `SegLaneDetector` (TwinLiteNet / YOLOP) |
+| LaneDetector | `ClassicalLaneDetector` (OpenCV), `SegLaneDetector` (TwinLiteNetPlus lane-line + drivable-area segmentation, ego lane from a row scan) |
 | DepthEstimator | `MidasDepth`, `DepthAnythingDepth`, `GroundTruthDepth` (CARLA, for upper-bound experiments) |
 | DistanceEstimator | `DepthScaleDistance` (calibrated MiDaS), `GroundPlaneDistance` (geometry), `FusedDistance` |
 | DecisionPolicy | `EmergencyBrakePolicy` (in-lane + TTC/distance thresholds), `NoOpPolicy` |

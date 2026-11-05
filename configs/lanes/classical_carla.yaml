@@ -1,0 +1,8 @@
+# Classical lane detector on CARLA recordings (800x600, FOV 90, camera 1.6 m up with pitch 0, no hood in
+# view). Lane width measured with scripts/eval_lanes_carla.py --calibrate.
+type: classical
+vanishing_point:
+- 0.5
+- 0.5
+bottom: 0.95
+lane_width: 0.738

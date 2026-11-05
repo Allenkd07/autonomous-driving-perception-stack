@@ -130,6 +130,11 @@ class ClassicalLaneDetector:
         threshold = max(self.min_response, float(np.percentile(response[valid], self.paint_percentile)))
         return (response >= threshold) & valid
 
+    def bev_paint(self, frame: Frame, to_bev: np.ndarray) -> np.ndarray:
+        """(bev_h, bev_w) bool paint mask of the frame's BEV; SegLaneDetector replaces it with a network."""
+        bev = cv2.warpPerspective(frame.image, to_bev, (self.bev_w, self.bev_h), flags=cv2.INTER_LINEAR)
+        return self.paint_mask(bev)
+
     def _window_search(self, ys: np.ndarray, xs: np.ndarray, start_x: float) -> np.ndarray:
         """Indices of paint pixels found by sliding windows starting at column start_x."""
         found = []
@@ -212,8 +217,7 @@ class ClassicalLaneDetector:
     def detect(self, frame: Frame) -> LaneResult:
         height, width = frame.image.shape[:2]
         to_bev, to_image = self._warp(width, height)
-        bev = cv2.warpPerspective(frame.image, to_bev, (self.bev_w, self.bev_h), flags=cv2.INTER_LINEAR)
-        left, right, confidence = self._check(*self._find_lines(self.paint_mask(bev)))
+        left, right, confidence = self._check(*self._find_lines(self.bev_paint(frame, to_bev)))
 
         if left is None:
             self._prev = None

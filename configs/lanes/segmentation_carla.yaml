@@ -1,0 +1,16 @@
+# Segmentation lane detector on CARLA recordings (800x600, FOV 90, camera 1.6 m up with pitch 0, no hood in
+# view): same model and settings as segmentation_bdd100k.yaml, CARLA camera geometry (used only to place a
+# missing line, and for the oracle in scripts/eval_lanes_carla.py). Lane width from --calibrate.
+type: segmentation
+model: weights/twinlitenetplus_large.ts
+backend: torch
+geometry: rows
+vanishing_point:
+- 0.5
+- 0.5
+bottom: 0.95
+lane_width: 0.738
+# One line found (often a missed thin dashed line in a junction): keep the ego lane within 1.25 lane widths
+# of that line, so it doesn't cover the whole junction (CARLA oracle: precision 0.69 -> 0.83, IoU 0.69 -> 0.75).
+# Not set for BDD100K, which labels a whole unmarked road as the ego lane.
+one_line_max_lanes: 1.25

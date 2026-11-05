@@ -1,0 +1,14 @@
+# Segmentation lane detector on BDD100K (1280x720 dashcams): TwinLiteNetPlus (scripts/export_twinlitenet.py)
+# finds lane-line and drivable-area pixels; geometry=rows scans them upward from under the car. The classical
+# geometry below (same calibration as classical_bdd100k.yaml) only places a missing line one lane width away,
+# or, with geometry=bev, drives the bird's-eye-view search.
+type: segmentation
+model: weights/twinlitenetplus_large.ts
+backend: torch
+geometry: rows
+vanishing_point:
+- 0.464
+- 0.4727
+bottom: 0.7567
+lane_width: 0.425
+extend_to: 0.8389

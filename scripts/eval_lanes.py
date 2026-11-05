@@ -111,7 +111,7 @@ def main() -> None:
             project="perception-stack",
             job_type="eval",
             group="lanes",
-            name=f"eval-lanes-{cfg['type']}",
+            name=f"eval-lanes-{cfg['type']}" + (f"-{Path(cfg['model']).stem}" if cfg.get("model") else ""),
             config={**vars(args), "detector": cfg},
             tags=["phase3", "lanes"],
         )
