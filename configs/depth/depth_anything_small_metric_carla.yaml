@@ -1,0 +1,9 @@
+# Depth Anything V2 Small fine-tuned on Virtual KITTI 2: depth in metres (scripts/export_depth_anything.py)
+type: depth_anything
+model: weights/depth_anything_v2_small_metric_686x518.ts
+input_size: [686, 518]
+metric: true
+# Virtual KITTI 2 fx 725.0 at 1242x375, resized to a 518 px short side for fine-tuning: rescales to
+# this camera's focal length (CARLA FOV 90: fx 400 at 800 px -> 343 at 686, factor 0.34)
+train_focal_px: 1001.5
+backend: torch

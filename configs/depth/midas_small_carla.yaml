@@ -1,0 +1,5 @@
+# MiDaS v2.1 Small for CARLA's 800x600 camera: exported at 256x192 (4:3) by scripts/export_midas.py
+type: midas
+model: weights/midas_small_256x192.ts
+input_size: [256, 192]
+backend: torch

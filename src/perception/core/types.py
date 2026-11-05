@@ -65,7 +65,7 @@ class LaneResult:
 @dataclass
 class DepthMap:
     depth: np.ndarray  # (H, W) float32
-    is_metric: bool  # False = relative (raw MiDaS), True = metres
+    is_metric: bool  # True = metres; False = relative inverse depth (raw MiDaS: larger = nearer)
 
 
 @dataclass

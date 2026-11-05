@@ -24,3 +24,13 @@ def ground_point(u: float, v: float, camera: CameraInfo) -> tuple[float, float] 
         return None
     t = camera.height_m / down
     return float(t * ray[0]), float(t * forward)
+
+
+def road_depth(rows: np.ndarray, camera: CameraInfo) -> np.ndarray:
+    """Depth (along the optical axis, as a depth camera measures it) of the flat road seen at each image row;
+    NaN for rows at or above the horizon. The same for every column of a row: the ray through pixel (u, v)
+    is K^-1 (u, v, 1), whose z is 1, so its depth is the ray's scale where it meets the road."""
+    fy, cy = camera.K[1, 1], camera.K[1, 2]
+    down = (np.asarray(rows, np.float64) - cy) / fy * np.cos(camera.pitch_rad) + np.sin(camera.pitch_rad)
+    with np.errstate(divide="ignore"):
+        return np.where(down > MIN_RAY_DOWN, camera.height_m / down, np.nan)

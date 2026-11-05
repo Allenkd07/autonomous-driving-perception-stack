@@ -12,11 +12,12 @@ tracker:
 lanes:
   type: classical
 depth:
-  type: midas
-  model: MiDaS_small
+  type: depth_anything              # relative, calibrated per frame on the road; MiDaS Small: configs/depth/
+  model: weights/depth_anything_v2_small_relative_686x518.ts   # scripts/export_depth_anything.py (4:3)
+  input_size: [686, 518]
   backend: torch                    # torch | onnx | tensorrt
 distance:
-  type: fused
+  type: fused                       # ground plane + calibrated depth, by measured errors (fusion/fused.py)
 policy:
   type: emergency_brake
   ttc_threshold_s: 2.0

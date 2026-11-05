@@ -1,0 +1,5 @@
+# Depth Anything V2 Small, relative inverse depth, for CARLA's 800x600 camera (scripts/export_depth_anything.py)
+type: depth_anything
+model: weights/depth_anything_v2_small_relative_686x518.ts
+input_size: [686, 518]
+backend: torch

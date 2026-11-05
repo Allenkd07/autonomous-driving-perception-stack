@@ -68,7 +68,7 @@ class LaneResult:
 @dataclass
 class DepthMap:
     depth: np.ndarray        # HxW float32
-    is_metric: bool          # False = relative (raw MiDaS), True = metres
+    is_metric: bool          # False = relative inverse depth (MiDaS, Depth Anything), True = metres
 
 @dataclass
 class ObjectState:
@@ -131,8 +131,8 @@ Stateful stages (tracker, distance estimator with TTC history, lane temporal smo
 | Detector | `YoloDetector` (weights: `.pt` / `.onnx` / `.engine`) |
 | Tracker | `ByteTrackTracker`, `DeepSortTracker` |
 | LaneDetector | `ClassicalLaneDetector` (OpenCV), `SegLaneDetector` (TwinLiteNetPlus lane-line + drivable-area segmentation, ego lane from a row scan) |
-| DepthEstimator | `MidasDepth`, `DepthAnythingDepth`, `GroundTruthDepth` (CARLA, for upper-bound experiments) |
-| DistanceEstimator | `DepthScaleDistance` (calibrated MiDaS), `GroundPlaneDistance` (geometry), `FusedDistance` |
+| DepthEstimator | `NetworkDepth` (MiDaS or Depth Anything V2, relative or metric), `GroundTruthDepth` (CARLA, for upper-bound experiments) |
+| DistanceEstimator | `DepthScaleDistance` (relative depth calibrated per frame on the road), `GroundPlaneDistance` (geometry), `FusedDistance` (both, weighted by measured errors) |
 | DecisionPolicy | `EmergencyBrakePolicy` (in-lane + TTC/distance thresholds), `NoOpPolicy` |
 | FrameSource | `VideoSource`, `ImageFolderSource`, `CarlaSource`, (ROS subscriber lives in the ROS adapter) |
 | Sink | `VideoSink`, `DisplaySink`, `WandbSink`, (ROS publisher lives in the ROS adapter) |
@@ -167,7 +167,7 @@ for frame in source:
 detector:  {type: yolo, weights: weights/yolo11s_bdd.engine, conf: 0.35, classes: [car, truck, bus, person, rider, bicycle, motorcycle]}
 tracker:   {type: bytetrack, track_buffer: 30}
 lanes:     {type: classical}
-depth:     {type: midas, model: MiDaS_small, backend: tensorrt}
+depth:     {type: depth_anything, model: weights/depth_anything_v2_small_relative_686x518.engine, backend: tensorrt}
 distance:  {type: fused}
 policy:    {type: emergency_brake, ttc_threshold_s: 2.0, min_distance_m: 6.0}
 ```
