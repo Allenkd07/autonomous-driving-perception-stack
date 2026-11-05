@@ -89,9 +89,16 @@ class TrackingEvaluator:
 def summarize(evaluators: Sequence[TrackingEvaluator]) -> dict[str, float]:
     """Metrics over all evaluators' sequences together (counts summed, ratios over the pooled counts)."""
     import motmetrics as mm
+    import pandas as pd
 
     names = [f"seq{i}" for i in range(len(evaluators))]
     table = mm.metrics.create().compute_many(
         [e.acc for e in evaluators], metrics=list(METRICS), names=names, generate_overall=True
     )
-    return {name: float(table.loc["OVERALL", name]) for name in METRICS}
+    result = {name: float(table.loc["OVERALL", name]) for name in METRICS}
+    # motmetrics pools MOTP as a match-weighted mean of per-sequence MOTPs, so one sequence without matches
+    # (MOTP nan, weight 0) makes the total nan. Pool the match distances directly instead.
+    events = pd.concat([e.acc.mot_events for e in evaluators])
+    distances = events.loc[events["Type"].isin(["MATCH", "SWITCH"]), "D"]
+    result["motp"] = float(distances.mean()) if len(distances) else float("nan")
+    return result

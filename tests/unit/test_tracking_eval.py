@@ -74,3 +74,11 @@ def test_summarize_pools_sequences():
 
     assert m["num_frames"] == 6 and m["num_misses"] == 3
     assert m["mota"] == pytest.approx(0.5)
+
+
+def test_summarize_motp_ignores_sequences_without_matches():
+    matched, empty = TrackingEvaluator(), TrackingEvaluator()
+    matched.update(0, [1], A, [7], A)  # IoU 1 -> distance 0
+    empty.update(0, [], np.zeros((0, 4)), [3], A)  # a false positive only, no match
+
+    assert summarize([matched, empty])["motp"] == pytest.approx(0.0)
