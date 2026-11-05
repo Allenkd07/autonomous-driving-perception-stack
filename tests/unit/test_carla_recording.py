@@ -109,6 +109,15 @@ def test_match_frame_by_box_depth_and_kind(camera):
     assert matches == {1007: 7, 1500: None, 1009: 9, 1600: None}
 
 
+def test_match_frame_without_vehicles_or_people(camera):
+    tag, ids = decode_instance(instance_image((3, ROAD, (0, 300, W, H))))
+    scene = actors((7, "car", [20, 0, 0], [2, 1, 1]))
+
+    depth = np.full((H, W), 20.0, np.float32)
+
+    assert match_frame(tag, ids, depth, scene, CAM_TO_WORLD, camera) == {}
+
+
 def test_match_instances_votes_over_frames():
     frames = [
         {1: 7, 2: None},

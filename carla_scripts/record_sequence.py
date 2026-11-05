@@ -43,13 +43,18 @@ def to_bgr(image: carla.Image) -> np.ndarray:
     return np.frombuffer(image.raw_data, np.uint8).reshape(image.height, image.width, 4)[:, :, :3].copy()
 
 
-def spawn_vehicles(world, tm_port: int, n: int, spawn_points: list, rng: random.Random) -> list:
+def spawn_vehicles(
+    world, tm_port: int, n: int, spawn_points: list, rng: random.Random, two_wheeler_share: float
+) -> list:
+    """n autopilot vehicles; each is a bicycle/motorcycle with probability two_wheeler_share."""
     blueprints = world.get_blueprint_library().filter("vehicle.*")
+    two_wheelers = [bp for bp in blueprints if bp.get_attribute("number_of_wheels").as_int() == 2]
+    four_wheelers = [bp for bp in blueprints if bp.get_attribute("number_of_wheels").as_int() != 2]
     vehicles = []
     for transform in spawn_points:
         if len(vehicles) == n:
             break
-        bp = rng.choice(blueprints)
+        bp = rng.choice(two_wheelers if rng.random() < two_wheeler_share else four_wheelers)
         if bp.has_attribute("color"):
             bp.set_attribute("color", rng.choice(bp.get_attribute("color").recommended_values))
         vehicle = world.try_spawn_actor(bp, transform)
@@ -59,15 +64,20 @@ def spawn_vehicles(world, tm_port: int, n: int, spawn_points: list, rng: random.
     return vehicles
 
 
-def spawn_walkers(world, n: int, rng: random.Random) -> tuple[list, list]:
+def spawn_walkers(
+    world, n: int, rng: random.Random, centre: carla.Location | None = None, radius: float = 0.0
+) -> tuple[list, list]:
+    """n walkers with AI controllers; with a radius, only on sidewalks within radius metres of centre."""
     lib = world.get_blueprint_library()
     blueprints = lib.filter("walker.pedestrian.*")
     walkers = []
-    for _ in range(n * 2):  # some random locations collide; try up to twice as often
+    # Some random locations collide, so try more often than n; far more with a radius, since most random
+    # locations of a large map fall outside it (the calls are cheap).
+    for _ in range(n * (50 if radius > 0 else 2)):
         if len(walkers) == n:
             break
         location = world.get_random_location_from_navigation()
-        if location is None:
+        if location is None or (radius > 0 and location.distance(centre) > radius):
             continue
         bp = rng.choice(blueprints)
         if bp.has_attribute("is_invincible"):
@@ -120,16 +130,43 @@ def main() -> None:
     parser.add_argument(
         "--warmup", type=int, default=40, help="ticks before recording, to get traffic moving"
     )
+    parser.add_argument(
+        "--spawn-radius",
+        type=float,
+        default=0.0,
+        help="spawn vehicles and walkers within this many metres of the ego (0: anywhere); keeps traffic in "
+        "view on large maps like Town05",
+    )
+    parser.add_argument(
+        "--two-wheeler-share",
+        type=float,
+        default=0.3,
+        help="fraction of spawned vehicles that are bicycles/motorcycles (uniform blueprint choice gives "
+        "~15%%, and they rarely end up in view)",
+    )
+    parser.add_argument(
+        "--ego-ignore-lights",
+        type=float,
+        default=100.0,
+        help="percentage of red lights the ego drives through, so it keeps moving instead of waiting "
+        "half the sequence at a light; collision avoidance stays on",
+    )
     parser.add_argument("--max-range", type=float, default=100.0, help="actors further away are not stored")
     parser.add_argument("--width", type=int, default=800)
     parser.add_argument("--height", type=int, default=600)
     parser.add_argument("--fov", type=float, default=90.0)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=60.0,
+        help="seconds to wait for the server and for each frame; raise it for CPU rendering (lavapipe)",
+    )
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
 
     client = carla.Client(args.host, args.port)
-    client.set_timeout(60.0)
+    client.set_timeout(args.timeout)
     world = client.get_world()
     if not world.get_map().name.endswith(args.town):
         world = client.load_world(args.town)
@@ -155,19 +192,30 @@ def main() -> None:
         ego = world.spawn_actor(world.get_blueprint_library().find("vehicle.tesla.model3"), spawn_points[0])
         vehicles = [ego]
         ego.set_autopilot(True, tm.get_port())
-        vehicles += spawn_vehicles(world, tm.get_port(), args.vehicles, spawn_points[1:], rng)
-        walkers, controllers = spawn_walkers(world, args.walkers, rng)
+        tm.ignore_lights_percentage(ego, args.ego_ignore_lights)
+        others = spawn_points[1:]
+        if args.spawn_radius > 0:
+            centre = spawn_points[0].location
+            others = [p for p in others if p.location.distance(centre) <= args.spawn_radius]
+        vehicles += spawn_vehicles(world, tm.get_port(), args.vehicles, others, rng, args.two_wheeler_share)
+        walkers, controllers = spawn_walkers(
+            world, args.walkers, rng, spawn_points[0].location, args.spawn_radius
+        )
         cameras = spawn_cameras(world, ego, args)
         queues = {name: queue.Queue() for name in cameras}
         for name, camera in cameras.items():
             camera.listen(queues[name].put)
         tracked = {a.id: a for a in [*vehicles[1:], *walkers] if class_of(a) is not None}
-        print(f"Map {world.get_map().name}: {len(vehicles) - 1} vehicles, {len(walkers)} walkers")
+        n_two = sum(class_of(v) in ("bicycle", "motorcycle") for v in vehicles[1:])
+        print(
+            f"Map {world.get_map().name}: {len(vehicles) - 1} vehicles ({n_two} two-wheelers), "
+            f"{len(walkers)} walkers"
+        )
 
         frame_rows, actor_rows = [], []
         for tick in range(args.warmup + args.frames):
             world.tick()
-            images = {name: q.get(timeout=30.0) for name, q in queues.items()}
+            images = {name: q.get(timeout=args.timeout) for name, q in queues.items()}
             if len({image.frame for image in images.values()}) != 1:
                 raise RuntimeError(f"sensors out of sync: {[image.frame for image in images.values()]}")
             if tick < args.warmup:
@@ -226,6 +274,9 @@ def main() -> None:
             "vehicles": len(vehicles) - 1,
             "walkers": len(walkers),
             "max_range_m": args.max_range,
+            "spawn_radius_m": args.spawn_radius,
+            "two_wheeler_share": args.two_wheeler_share,
+            "ego_ignore_lights_pct": args.ego_ignore_lights,
             "carla_version": client.get_server_version(),
         }
         (args.out / "meta.json").write_text(json.dumps(meta, indent=2))

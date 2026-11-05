@@ -153,6 +153,8 @@ def match_frame(
         candidates.append((int(actor.actor_id), is_person, amodal[:2] - pad, amodal[2:] + pad, near, far))
 
     ys, xs = np.nonzero(np.isin(tag, DYNAMIC_TAGS))
+    if len(ys) == 0:  # no vehicle or person in view (np.split below would return one empty group)
+        return {}
     values, inverse, counts = np.unique(ids[ys, xs], return_inverse=True, return_counts=True)
     groups = np.split(np.argsort(inverse, kind="stable"), np.cumsum(counts)[:-1])
     matches = {}
