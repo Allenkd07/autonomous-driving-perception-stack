@@ -108,6 +108,9 @@ def main() -> None:
     parser.add_argument("--cache-dir", type=Path, default=Path("runs/eval_tracking"))
     parser.add_argument("--no-wandb", action="store_true")
     args, overrides = parser.parse_known_args()
+    # --trackers (nargs="+") also swallows tracker.key=value overrides given after it: move them out
+    overrides += [a for a in args.trackers if "=" in a]
+    args.trackers = [a for a in args.trackers if "=" not in a]
     # tracker.key=value overrides, e.g. deepsort.max_cosine_distance=0.3
     tracker_args = OmegaConf.to_container(OmegaConf.from_dotlist(overrides))
 
