@@ -133,7 +133,7 @@ Stateful stages (tracker, distance estimator with TTC history, lane temporal smo
 | LaneDetector | `ClassicalLaneDetector` (OpenCV), `SegLaneDetector` (TwinLiteNetPlus lane-line + drivable-area segmentation, ego lane from a row scan) |
 | DepthEstimator | `NetworkDepth` (MiDaS or Depth Anything V2, relative or metric), `GroundTruthDepth` (CARLA, for upper-bound experiments) |
 | DistanceEstimator | `DepthScaleDistance` (relative depth calibrated per frame on the road), `GroundPlaneDistance` (geometry), `FusedDistance` (both, weighted by measured errors) |
-| DecisionPolicy | `EmergencyBrakePolicy` (in-lane + TTC/distance thresholds), `NoOpPolicy` |
+| DecisionPolicy | `EmergencyBrakePolicy` (in-lane + TTC/stopping-distance thresholds, closing speed capped at ego speed, holds a standstill behind an obstacle), `NoOpPolicy` |
 | FrameSource | `VideoSource`, `ImageFolderSource`, `CarlaSource`, (ROS subscriber lives in the ROS adapter) |
 | Sink | `VideoSink`, `DisplaySink`, `WandbSink`, (ROS publisher lives in the ROS adapter) |
 

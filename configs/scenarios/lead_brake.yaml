@@ -1,0 +1,14 @@
+# A car 25 m ahead drives at the ego's 30 km/h, then brakes fully at 4 s. Following at equal speed is not a
+# reason to brake (no closing speed); its hard stop is.
+name: lead_brake
+town: Town10HD_Opt
+weather: ClearNoon
+seed: 2
+ego_speed_kmh: 30
+road_length_m: 90       # the lead stops ~63 m ahead (25 m + 4 s at 30 km/h + braking)
+max_seconds: 12
+parked_vehicles: false  # Town10HD's parked cars reach over the kerb lane's line: one obstacle per test
+actor:
+  type: lead_brake
+  distance_m: 25
+  brake_at_s: 4.0

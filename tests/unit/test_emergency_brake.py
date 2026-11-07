@@ -26,7 +26,7 @@ def policy():
 
 
 def test_brakes_for_low_ttc_in_lane(policy, make_frame):
-    cmd = policy.decide(output(make_frame, state(20.0, ttc=1.5, track_id=12)), ego_speed_mps=10.0)
+    cmd = policy.decide(output(make_frame, state(20.0, ttc=1.5, track_id=12)), ego_speed_mps=15.0)
 
     assert cmd.brake == 1.0 and cmd.throttle == 0.0
     assert "track 12" in cmd.reason and "ttc=1.5s" in cmd.reason
@@ -49,6 +49,27 @@ def test_stopping_distance_fires_before_the_ttc_threshold_at_speed(policy, make_
     policy.reset()
     # Same TTC at a low closing speed: 12 m at 5 m/s needs only 1.5 + 2.1 m
     assert policy.decide(output(make_frame, state(12.0, ttc=2.4)), 5.0) == NO_INTERVENTION
+
+
+def test_closing_speed_is_capped_at_ego_speed_plus_object_approach(policy, make_frame):
+    # 40 m with 1.4 s TTC reads as closing at 28.6 m/s; at 8.3 m/s ego speed at most 10.3 m/s is possible
+    assert policy.decide(output(make_frame, state(40.0, ttc=1.4, name="car")), 8.3) == NO_INTERVENTION
+    # The same noisy reading close in still brakes: 15 m at 10.3 m/s is a TTC of 1.5 s
+    cmd = policy.decide(output(make_frame, state(15.0, ttc=0.5, name="car")), 8.3)
+    assert cmd.brake == 1.0 and "ttc=1.5s" in cmd.reason
+
+
+def test_a_stopped_ego_does_not_brake_for_distance_noise(policy, make_frame):
+    assert policy.decide(output(make_frame, state(43.0, ttc=2.0, name="car")), 0.0) == NO_INTERVENTION
+
+
+def test_stays_stopped_behind_an_in_lane_object(policy, make_frame):
+    cmd = policy.decide(output(make_frame, state(10.0, name="car", track_id=7)), 0.0)
+    assert cmd.brake == 1.0 and cmd.reason == "STANDSTILL track 7 (car) d=10.0m"
+    # Pulls away once the object is far enough, out of the lane, or while still moving
+    assert policy.decide(output(make_frame, state(20.0, name="car")), 0.0) == NO_INTERVENTION
+    assert policy.decide(output(make_frame, state(10.0, in_lane=False)), 0.0) == NO_INTERVENTION
+    assert policy.decide(output(make_frame, state(10.0, name="car")), 5.0) == NO_INTERVENTION
 
 
 def test_a_car_we_are_not_closing_on_is_not_braked_for(policy, make_frame):

@@ -76,6 +76,17 @@ def test_overlay_draws_boxes_lanes_and_warnings(make_frame):
     assert not draw_output(output(make_frame, with_lanes=False))[500, 400].any()
 
 
+def test_overlay_draws_in_lane_objects_on_top(make_frame):
+    # A roadside car listed after the in-lane one, with a box at the same place: the in-lane box still wins
+    out = output(make_frame, ttc=5.0)
+    beside = Track(
+        box=np.array([300, 200, 400, 300], np.float32), score=0.9, class_id=0, class_name="car", track_id=8
+    )
+    out.objects.append(ObjectState(track=beside, distance_m=9.0, ttc_s=None, in_ego_lane=False))
+
+    assert tuple(draw_output(out)[250, 300]) == track_colour(3)
+
+
 def test_ground_truth_overlay_tints_actor_and_unlabelled_pixels():
     image = np.zeros((200, 300, 3), np.uint8)
     actor_ids = np.full((200, 300), -1)

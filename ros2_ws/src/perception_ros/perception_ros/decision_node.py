@@ -35,7 +35,9 @@ class DecisionNode(Node):
         self.declare_parameter("overrides", Parameter.Type.STRING_ARRAY)
         if policy is None:
             config = self.get_parameter("config").value
-            cfg = load_config(config, list(self.get_parameter("overrides").value or []))
+            # get_parameter_or: unset when the launch passes no overrides (see perception_node)
+            overrides = list(self.get_parameter_or("overrides", Parameter("overrides", value=[])).value)
+            cfg = load_config(config, overrides)
             self.get_logger().info(f"policy {cfg.policy} from {config}")
             policy = registry.build("policy", cfg.policy)
         self.policy = policy

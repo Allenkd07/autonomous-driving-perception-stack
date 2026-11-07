@@ -1,0 +1,34 @@
+# Closed loop in CARLA (ros2 launch perception_ros carla.launch.py): the best models measured on CARLA.
+#   detector  random-sample YOLO11s: fewer false rider/bicycle boxes on CARLA pedestrians than the
+#             oversampled model (tracking eval: MOTA 0.588 vs 0.535)
+#   lanes     TwinLiteNet+ Medium, rows geometry (CARLA ego-lane IoU 0.753 vs 0.748 Large, faster)
+#   depth     Depth Anything V2 Small relative, calibrated per frame on the road (dense AbsRel 0.092)
+detector:
+  type: yolo
+  weights: weights/yolo11s_bdd100k_random.pt
+  conf: 0.1                         # low: ByteTrack's second round matches 0.1-0.25 detections
+  classes: [car, truck, bus, person, rider, bicycle, motorcycle]
+tracker:
+  type: bytetrack
+  track_buffer: 30
+lanes:                              # as configs/lanes/segmentation_carla.yaml, Medium model
+  type: segmentation
+  model: weights/twinlitenetplus_medium.ts
+  backend: torch
+  geometry: rows
+  vanishing_point: [0.5, 0.5]
+  bottom: 0.95
+  lane_width: 0.738
+  one_line_max_lanes: 1.25
+depth:
+  type: depth_anything
+  model: weights/depth_anything_v2_small_relative_686x518.ts
+  input_size: [686, 518]
+  backend: torch
+distance:
+  type: fused
+policy:
+  type: emergency_brake
+  ttc_threshold_s: 2.0
+  min_distance_m: 6.0
+depth_every_n: 1

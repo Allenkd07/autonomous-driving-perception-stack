@@ -1,0 +1,16 @@
+# A pedestrian 4.5 m right of the ego lane's centre, 45 m ahead, starts walking across at 1.4 m/s when the
+# ego is 35 m away. It enters the lane (1.75 m from the centre) ~2 s later, when the ego is ~18 m away.
+name: pedestrian_crossing
+town: Town10HD_Opt
+weather: ClearNoon
+seed: 1
+ego_speed_kmh: 30
+road_length_m: 80
+max_seconds: 12
+parked_vehicles: false  # Town10HD's parked cars reach over the kerb lane's line: one obstacle per test
+actor:
+  type: pedestrian_crossing
+  distance_m: 45
+  trigger_gap_m: 35
+  side_offset_m: 4.5
+  walk_speed: 1.4

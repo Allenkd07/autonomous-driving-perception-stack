@@ -1,16 +1,22 @@
 """decision_node over real ROS topics with the real emergency-brake policy."""
 
+from pathlib import Path
+
 import numpy as np
+import pytest
 from perception_msgs.msg import ControlCommand as ControlCommandMsg
 from perception_msgs.msg import TrackedObjectArray
 from rclpy.executors import SingleThreadedExecutor
+from rclpy.parameter import Parameter
 from rclpy.qos import QoSProfile
 from std_msgs.msg import Float32, Header
 
 from perception.core.types import ObjectState, Track
-from perception.planning.emergency_brake import EmergencyBrakePolicy
+from perception.planning.emergency_brake import EmergencyBrakePolicy, NoOpPolicy
 from perception_ros.conversions import objects_to_msg, seconds_to_stamp
 from perception_ros.decision_node import DecisionNode
+
+CONFIG = Path(__file__).resolve().parents[4] / "configs" / "pipeline" / "carla.yaml"
 
 
 def objects(t: float, ttc: float | None, in_lane: bool = True) -> TrackedObjectArray:
@@ -51,3 +57,16 @@ def test_brakes_and_releases(ros, spin_until):
     assert later.brake == 0.0 and later.reason == ""
     assert not node.braking
     executor.shutdown()
+
+
+@pytest.mark.parametrize(
+    ("overrides", "expected"), [(None, EmergencyBrakePolicy), (["policy.type=noop"], NoOpPolicy)]
+)
+def test_policy_from_config(ros, overrides, expected):
+    # A launch without overrides passes no overrides parameter at all: that must not fail
+    params = [Parameter("config", value=str(CONFIG))]
+    if overrides is not None:
+        params.append(Parameter("overrides", value=overrides))
+    node = DecisionNode(parameter_overrides=params)
+    assert isinstance(node.policy, expected)
+    node.destroy_node()

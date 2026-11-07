@@ -54,7 +54,8 @@ def draw_output(output: PerceptionOutput, ttc_warning_s: float = 2.0) -> np.ndar
                 points = np.c_[np.polyval(fit, ys), ys].astype(np.int32)
                 cv2.polylines(image, [points], False, LANE_LINE, 2, cv2.LINE_AA)
 
-    for state in output.objects:
+    # Objects in the ego lane last: their labels (what the policy acts on) stay on top
+    for state in sorted(output.objects, key=lambda s: s.in_ego_lane):
         track = state.track
         danger = state.in_ego_lane and state.ttc_s is not None and state.ttc_s < ttc_warning_s
         colour = DANGER if danger else track_colour(track.track_id)

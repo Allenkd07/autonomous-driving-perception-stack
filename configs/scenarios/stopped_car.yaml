@@ -1,0 +1,13 @@
+# A parked car in the ego lane 50 m ahead; the ego drives at 30 km/h (8.3 m/s).
+# Stopping needs ~8 m (0.3 s reaction + 8.3^2 / (2 * 6 m/s^2)); the policy's TTC < 2 s fires at ~17 m.
+name: stopped_car
+town: Town10HD_Opt
+weather: ClearNoon
+seed: 0                 # which straight lane of the map
+ego_speed_kmh: 30
+road_length_m: 80       # straight lane without junctions from the start (Town10HD has up to ~98 m)
+max_seconds: 12
+parked_vehicles: false  # Town10HD's parked cars reach over the kerb lane's line: one obstacle per test
+actor:
+  type: stopped_car
+  distance_m: 50

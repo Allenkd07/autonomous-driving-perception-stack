@@ -61,7 +61,9 @@ class PerceptionNode(Node):
 
         if pipeline is None:
             config = self.get_parameter("config").value
-            overrides = list(self.get_parameter("overrides").value or [])
+            # get_parameter raises when the launch passes no overrides (declared without a value, since an
+            # empty list has no type); get_parameter_or falls back instead
+            overrides = list(self.get_parameter_or("overrides", Parameter("overrides", value=[])).value)
             self.get_logger().info(f"building pipeline from {config} {overrides}")
             pipeline = PerceptionPipeline.from_config(load_config(config, overrides))
         self.pipeline = pipeline
