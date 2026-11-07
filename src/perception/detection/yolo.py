@@ -42,6 +42,8 @@ class YoloDetector:
     weights   .pt, .onnx or .engine; class names come from the weights' metadata
     conf      minimum score kept
     iou       NMS IoU threshold
+    imgsz     input size: the long side for .pt (Ultralytics pads to a multiple of 32), or [h, w]; .onnx and
+              .engine exports have a fixed shape, so give the one they were exported with
     classes   class names to keep (None keeps all); filtered inside NMS, not afterwards
     device    "cpu", 0, "cuda:0", ...; None lets Ultralytics pick
     half      FP16 inference for .pt on CUDA (an .engine's precision is fixed when it is built)
@@ -52,7 +54,7 @@ class YoloDetector:
         weights: str | Path,
         conf: float = 0.25,
         iou: float = 0.7,
-        imgsz: int = 640,
+        imgsz: int | Sequence[int] = 640,
         classes: Sequence[str] | None = None,
         device: str | int | None = None,
         half: bool = False,
@@ -63,7 +65,9 @@ class YoloDetector:
         self.model = YOLO(str(weights), task="detect")
         self.names: dict[int, str] = dict(self.model.names)
         self.class_ids = class_ids(self.names, classes)
-        self.predict_args = dict(conf=conf, iou=iou, imgsz=imgsz, device=device, half=half, verbose=False)
+        self.predict_args = dict(conf=conf, iou=iou, imgsz=imgsz, device=device, verbose=False)
+        if half:  # Ultralytics 8.4 warns on every call that passes half at all (renamed to quantize)
+            self.predict_args["half"] = True
 
     def detect(self, frame: Frame) -> list[Detection]:
         # Ultralytics treats numpy input as BGR, which is what Frame holds

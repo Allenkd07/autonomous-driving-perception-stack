@@ -15,6 +15,10 @@ timm  # needed by MiDaS via torch.hub
 wandb
 onnx
 onnxruntime-gpu
+# TensorRT 10 (CUDA 12 build, ~3 GB of libraries): engines are tied to this version, so rebuild them after
+# changing it. 10.x rather than 11: onnxruntime-gpu's TensorRT provider links libnvinfer.so.10
+tensorrt-cu12==10.13.3.9
+nvidia-ml-py  # GPU memory readings in scripts/benchmark_backends.py
 carla==0.9.15
 pandas
 pyarrow  # Parquet files for the dataset index
@@ -28,5 +32,3 @@ pytest>=8  # Ubuntu ships pytest 6 (ros-dev-tools); the venv needs a newer one
 ruff
 pre-commit
 -e .  # installs the perception package
-# TensorRT: install separately once CUDA is confirmed working:
-#   pip install tensorrt

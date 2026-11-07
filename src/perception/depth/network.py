@@ -33,8 +33,10 @@ IMAGENET_STD = np.array([0.229, 0.224, 0.225], np.float32)
 class NetworkDepth:
     """DepthEstimator running an exported depth network.
 
-    model        exported network (.ts for the torch backend, .onnx / .engine later)
+    model        exported network: .ts (torch backend), .onnx (onnx), .engine (tensorrt)
     input_size   (width, height) the model was exported with; frames of another aspect are stretched to it
+    raw_input    the model was exported with --raw-input: it takes the resized BGR uint8 image (1, h, w, 3)
+                 and normalises inside (on the GPU), instead of a normalised float32 (1, 3, h, w)
     metric       the output is in metres (metric models) rather than relative inverse depth
     train_focal_px  metric models: horizontal focal length of the training images at the network input, in
                  pixels (Virtual KITTI 2: fx 725.0 at 1242 x 375, resized to a 518 px short side -> 1001.5);
@@ -52,8 +54,10 @@ class NetworkDepth:
         backend: str = "torch",
         device: str | None = None,
         half: bool = False,
+        raw_input: bool = False,
     ) -> None:
         self.input_w, self.input_h = input_size
+        self.raw_input = raw_input
         self.metric = metric
         self.train_focal_px = train_focal_px
         self.backend = registry.build(
@@ -69,7 +73,11 @@ class NetworkDepth:
         )
 
     def preprocess(self, image: np.ndarray) -> np.ndarray:
-        """BGR uint8 (H, W, 3) -> (1, 3, h, w) float32, RGB normalised as in training."""
+        """BGR uint8 (H, W, 3) -> (1, 3, h, w) float32, RGB normalised as in training; with raw_input the
+        resized image itself, (1, h, w, 3) BGR uint8 (resizing per channel commutes with BGR -> RGB)."""
+        if self.raw_input:
+            x = cv2.resize(image, (self.input_w, self.input_h), interpolation=cv2.INTER_CUBIC)
+            return np.ascontiguousarray(x[None])
         rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         x = cv2.resize(rgb, (self.input_w, self.input_h), interpolation=cv2.INTER_CUBIC)
         x = (x.astype(np.float32) / 255.0 - IMAGENET_MEAN) / IMAGENET_STD

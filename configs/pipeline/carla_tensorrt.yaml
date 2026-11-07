@@ -1,0 +1,41 @@
+# configs/pipeline/carla.yaml with every network as a TensorRT FP16 engine, for the RTX 3050.
+# Engines are built on the machine that runs them (not committed):
+#   python scripts/export_yolo.py weights/yolo11s_bdd100k_random.pt
+#   python scripts/export_twinlitenet.py --size medium --weights <medium.pth> --raw-input
+#   python scripts/build_engine.py weights/twinlitenetplus_medium_raw.onnx
+#   python scripts/export_depth_anything.py --kind relative --raw-input
+#   python scripts/build_engine.py weights/depth_anything_v2_small_relative_686x518_raw.onnx
+# The lane and depth engines take the resized BGR uint8 image and normalise on the GPU (raw_input).
+# Benchmarks and accuracy against the PyTorch models: scripts/benchmark_backends.py.
+detector:
+  type: yolo
+  weights: weights/yolo11s_bdd100k_random.engine
+  imgsz: [480, 640]                 # the engine's fixed input: CARLA's 800x600 letterboxed, no padding
+  conf: 0.1
+  classes: [car, truck, bus, person, rider, bicycle, motorcycle]
+tracker:
+  type: bytetrack
+  track_buffer: 30
+lanes:
+  type: segmentation
+  model: weights/twinlitenetplus_medium_raw_fp16.engine
+  backend: tensorrt
+  raw_input: true
+  geometry: rows
+  vanishing_point: [0.5, 0.5]
+  bottom: 0.95
+  lane_width: 0.738
+  one_line_max_lanes: 1.25
+depth:
+  type: depth_anything
+  model: weights/depth_anything_v2_small_relative_686x518_raw_fp16.engine
+  input_size: [686, 518]
+  backend: tensorrt
+  raw_input: true
+distance:
+  type: fused
+policy:
+  type: emergency_brake
+  ttc_threshold_s: 2.0
+  min_distance_m: 6.0
+depth_every_n: 1

@@ -5,14 +5,18 @@
     # depth-anything/Depth-Anything-V2-Metric-VKITTI-Small) into ~/external/depth_anything_weights/
     python scripts/export_depth_anything.py --kind relative --width 686 --height 518
     python scripts/export_depth_anything.py --kind metric --width 686 --height 518
+    python scripts/export_depth_anything.py --kind relative --raw-input      # for TensorRT
 
 Writes weights/depth_anything_v2_small_<kind>_<w>x<h>.{ts,onnx}: input "images" (1, 3, h, w) float32 RGB
 normalised with the ImageNet mean and std; output "depth" (1, h, w):
     relative   inverse depth up to a scale and shift per image, like MiDaS (larger = nearer)
     metric     depth in metres, up to --max-depth (80 m for the Virtual KITTI model)
+With --raw-input (files end in _raw) the input is the resized BGR uint8 image (1, h, w, 3) and the
+normalisation runs inside the model (perception.backends.raw_input); the depth stage needs raw_input: true.
 The model was trained with the shorter side at 518 px and both sides multiples of 14 (its ViT patch size):
-686 x 518 for a 4:3 camera; 518 x 392 is a faster, coarser choice. The model code is imported from the
-cloned repo (Apache-2.0), so it isn't vendored here.
+686 x 518 for a 4:3 camera; 518 x 392 is faster in PyTorch, but not under TensorRT FP16 (its engine kept
+most layers in FP32 and ran slower than 686 x 518). The model code is imported from the cloned repo
+(Apache-2.0), so it isn't vendored here.
 """
 
 from __future__ import annotations
@@ -22,6 +26,9 @@ import sys
 from pathlib import Path
 
 import torch
+
+from perception.backends.raw_input import RawImageInput
+from perception.depth.network import IMAGENET_MEAN, IMAGENET_STD
 
 WEIGHTS = {
     "relative": "depth_anything_v2_vits.pth",
@@ -43,6 +50,7 @@ def main() -> None:
     )
     parser.add_argument("--repo", type=Path, default=Path.home() / "external" / "Depth-Anything-V2")
     parser.add_argument("--out-dir", type=Path, default=Path("weights"))
+    parser.add_argument("--raw-input", action="store_true", help="BGR uint8 input, normalised in the model")
     args = parser.parse_args()
     if args.width % 14 or args.height % 14:
         parser.error("width and height must be multiples of 14")
@@ -58,11 +66,15 @@ def main() -> None:
     model.eval()
 
     example = torch.rand(1, 3, args.height, args.width)
+    if args.raw_input:
+        model = RawImageInput(model, IMAGENET_MEAN, IMAGENET_STD).eval()
+        example = torch.randint(0, 256, (1, args.height, args.width, 3), dtype=torch.uint8)
     with torch.inference_mode():
         depth = model(example)
     assert depth.shape == (1, args.height, args.width), depth.shape
 
-    out = args.out_dir / f"depth_anything_v2_small_{args.kind}_{args.width}x{args.height}"
+    suffix = "_raw" if args.raw_input else ""
+    out = args.out_dir / f"depth_anything_v2_small_{args.kind}_{args.width}x{args.height}{suffix}"
     out.parent.mkdir(parents=True, exist_ok=True)
     traced = torch.jit.trace(model, example)
     torch.jit.save(traced, f"{out}.ts")

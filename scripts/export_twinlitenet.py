@@ -7,6 +7,9 @@
 Writes weights/twinlitenetplus_<size>.{ts,onnx}: input "images" (1, 3, 384, 640) float32 RGB in [0, 1]
 (the image letterboxed to 640x360 plus 12 px grey rows above and below, as in training); outputs
 "drivable" and "lanes", (1, 2, 384, 640) logits each (channel 1 = drivable area / lane line).
+With --raw-input (files end in _raw, for TensorRT) the input is the letterboxed BGR uint8 image
+(1, 384, 640, 3) and the outputs are the class-1 probabilities (1, 384, 640): conversion and softmax run
+inside the model (perception.backends.raw_input); the lane stage needs raw_input: true.
 The model code is imported from the cloned repo (MIT licence), so it isn't vendored here.
 """
 
@@ -19,6 +22,8 @@ from types import SimpleNamespace
 
 import torch
 
+from perception.backends.raw_input import RawImageInput
+
 INPUT_H, INPUT_W = 384, 640
 
 
@@ -30,6 +35,7 @@ def main() -> None:
     parser.add_argument("--weights", type=Path, required=True, help="the size's .pth state dict")
     parser.add_argument("--repo", type=Path, default=Path.home() / "external" / "TwinLiteNetPlus")
     parser.add_argument("--out-dir", type=Path, default=Path("weights"))
+    parser.add_argument("--raw-input", action="store_true", help="BGR uint8 in, probabilities out")
     args = parser.parse_args()
 
     sys.path.insert(0, str(args.repo))  # the repo's `model` package
@@ -42,11 +48,16 @@ def main() -> None:
     model.eval()
 
     example = torch.rand(1, 3, INPUT_H, INPUT_W)
+    shape = (1, 2, INPUT_H, INPUT_W)
+    if args.raw_input:
+        model = RawImageInput(model, probabilities=True).eval()
+        example = torch.randint(0, 256, (1, INPUT_H, INPUT_W, 3), dtype=torch.uint8)
+        shape = (1, INPUT_H, INPUT_W)
     with torch.inference_mode():
         drivable, lanes = model(example)
-    assert drivable.shape == lanes.shape == (1, 2, INPUT_H, INPUT_W), (drivable.shape, lanes.shape)
+    assert drivable.shape == lanes.shape == shape, (drivable.shape, lanes.shape)
 
-    out = args.out_dir / f"twinlitenetplus_{args.size}"
+    out = args.out_dir / f"twinlitenetplus_{args.size}{'_raw' if args.raw_input else ''}"
     out.parent.mkdir(parents=True, exist_ok=True)
     traced = torch.jit.trace(model, example)
     torch.jit.save(traced, f"{out}.ts")

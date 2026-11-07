@@ -57,10 +57,13 @@ class SegLaneDetector(ClassicalLaneDetector):
     """Parameters besides the classical geometry (see ClassicalLaneDetector; with geometry=rows only
     vanishing_point, bottom and lane_width are used, to place a missing line one lane width away):
 
-    model             exported network (.ts for the torch backend, .onnx / .engine later); None builds only
-                      the geometry, for lanes_from_masks (e.g. an oracle ego lane from ground-truth masks)
+    model             exported network: .ts (torch backend), .onnx (onnx), .engine (tensorrt); None builds
+                      only the geometry, for lanes_from_masks (e.g. an oracle ego lane from ground truth)
     backend           InferenceBackend type: torch, onnx, tensorrt
     device, half      passed to the backend
+    raw_input         the model was exported with --raw-input: it takes the letterboxed BGR uint8 image
+                      (1, h, w, 3) and returns class-1 probabilities (1, h, w), converting and applying the
+                      softmax inside (on the GPU), instead of float32 RGB in and 2-class logits out
     input_size        (width, height) the network was exported at
     train_aspect      width / height of the training images (BDD100K: 16:9). Taller images are cropped from
                       the top to this aspect before the network (the road is at the bottom); the cropped rows
@@ -110,9 +113,11 @@ class SegLaneDetector(ClassicalLaneDetector):
         fallback: str = "drivable",
         one_line: str = "cut",
         one_line_max_lanes: float | None = None,
+        raw_input: bool = False,
         **classical,
     ) -> None:
         super().__init__(**classical)
+        self.raw_input = raw_input
         if geometry not in ("rows", "bev"):
             raise ValueError(f"geometry must be rows or bev, not {geometry!r}")
         if fallback not in ("corridor", "drivable", "none"):
@@ -155,21 +160,34 @@ class SegLaneDetector(ClassicalLaneDetector):
         super().reset()
         self._prev_image_fits: tuple[np.ndarray, np.ndarray] | None = None
 
+    def preprocess(self, image: np.ndarray) -> tuple[np.ndarray, int, tuple[int, int, int, int]]:
+        """BGR uint8 (H, W, 3) -> the network input (1, 3, h, w) float32 RGB in [0, 1] (raw_input: the
+        letterboxed (1, h, w, 3) BGR uint8 itself), the rows cropped from the top (train_aspect) and the
+        (top, left, h, w) of the image inside the letterboxed input."""
+        height, width = image.shape[:2]
+        crop = 0
+        if self.train_aspect is not None and width / height < self.train_aspect - 1e-3:
+            crop = height - round(width / self.train_aspect)
+        canvas, inside = letterbox(image[crop:], self.input_w, self.input_h)
+        if self.raw_input:
+            return np.ascontiguousarray(canvas[None]), crop, inside
+        x = np.ascontiguousarray(canvas[..., ::-1].transpose(2, 0, 1)[None], np.float32) / 255.0
+        return x, crop, inside
+
     def segment(self, image: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """(drivable, lane line) probabilities, each (H, W) float32 at the image's size."""
         if self.backend is None:
             raise RuntimeError("SegLaneDetector built without a model: use lanes_from_masks")
         height, width = image.shape[:2]
-        crop = 0
-        if self.train_aspect is not None and width / height < self.train_aspect - 1e-3:
-            crop = height - round(width / self.train_aspect)
-        canvas, (top, left, h, w) = letterbox(image[crop:], self.input_w, self.input_h)
-        x = np.ascontiguousarray(canvas[..., ::-1].transpose(2, 0, 1)[None], np.float32) / 255.0
+        x, crop, (top, left, h, w) = self.preprocess(image)
         out = self.backend.run({"images": x})
         probs = []
         for name in ("drivable", "lanes"):
-            logits = out[name][0, :, top : top + h, left : left + w]
-            p = 1.0 / (1.0 + np.exp(logits[0] - logits[1]))  # softmax over the 2 classes, class 1
+            if self.raw_input:  # the model already returns probabilities
+                p = out[name][0, top : top + h, left : left + w]
+            else:
+                logits = out[name][0, :, top : top + h, left : left + w]
+                p = 1.0 / (1.0 + np.exp(logits[0] - logits[1]))  # softmax over the 2 classes, class 1
             full = np.zeros((height, width), np.float32)
             full[crop:] = cv2.resize(
                 p.astype(np.float32), (width, height - crop), interpolation=cv2.INTER_LINEAR

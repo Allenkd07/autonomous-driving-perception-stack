@@ -144,10 +144,16 @@ Models are split into **pre-process → backend.run() → post-process**. Only t
 ```python
 class InferenceBackend(Protocol):
     def run(self, inputs: dict[str, np.ndarray]) -> dict[str, np.ndarray]: ...
-    # TorchBackend, OnnxRuntimeBackend, TensorRTBackend
+    # TorchBackend (TorchScript), OnnxBackend (ONNX Runtime, CUDA), TensorRTBackend (serialized engine)
 ```
 
-YOLO is the exception: Ultralytics already loads `.pt`, `.onnx` and `.engine` behind one API, so `YoloDetector` wraps Ultralytics behind our `Detector` interface. The rest of the system never imports Ultralytics. A custom TensorRT YOLO could be added as a second `Detector` implementation without changing anything else.
+- **Choosing a backend is config**: a stage's `model` file and `backend` (`torch` / `onnx` / `tensorrt`). Inputs and outputs are float32 numpy arrays whatever the backend, and `run()` returns only once the GPU has finished, so the per-stage timer measures real work.
+- **TensorRT engines** are built from the ONNX exports by `scripts/build_engine.py` (FP16 by default, FP32 for reference, an optimisation profile for a dynamic batch). An engine is compiled for one GPU model and one TensorRT version, so engines are built on the machine that runs them and are not committed. `TensorRTBackend` uses PyTorch tensors as its GPU buffers, so it shares PyTorch's CUDA context and needs no extra CUDA bindings.
+- **FP16 in PyTorch** (`half: true`) runs under autocast rather than converting the model, because traced models keep the float32 casts recorded in the trace.
+- **Raw-input models**: exported with `--raw-input`, a network takes the resized camera image as BGR `uint8` and does the colour conversion, scaling and normalisation (and, for lane segmentation, the softmax) inside the graph (`backends/raw_input.py`). Under TensorRT these ops fuse into the first and last layers, the CPU no longer converts every pixel to float, and a quarter of the bytes cross to the GPU. Resizing stays on the CPU so an engine doesn't depend on the camera's resolution. Stages take such models with `raw_input: true`.
+- `scripts/benchmark_backends.py` runs each model on each backend in its own process: latency (p50 / p95), GPU memory, and how far the outputs move from PyTorch FP32. Task accuracy (mAP, lane IoU, distance error) comes from the eval scripts with the engine swapped in.
+
+YOLO is the exception: Ultralytics already loads `.pt`, `.onnx` and `.engine` behind one API, so `YoloDetector` wraps Ultralytics behind our `Detector` interface, and `scripts/export_yolo.py` exports through Ultralytics so the engine keeps the metadata its predictor needs. The rest of the system never imports Ultralytics. A custom TensorRT YOLO could be added as a second `Detector` implementation without changing anything else.
 
 ## 6. Pipeline, config and registry
 
@@ -205,13 +211,14 @@ Windows                                  WSL2 Ubuntu 22.04 (ROS2 Humble)
 ```text
 src/perception/   the importable package (src layout: only importable once installed)
     core/        types.py, interfaces.py, registry.py, config.py, timing.py
-    backends/    torch_backend.py, onnx_backend.py, trt_backend.py
+    backends/    torch_backend.py, onnx_backend.py, tensorrt_backend.py, raw_input.py
     detection/   tracking/   lanes/   depth/   fusion/   planning/
     io/          sources.py, sinks.py
     viz/         drawing.py  (overlay boxes, IDs, lanes, distances)
     eval/        metrics for detection, tracking, lanes, depth
     pipeline.py
-scripts/       CLI entry points: run_pipeline.py, train_yolo.py, eval_*.py, export_onnx.py, build_trt.py, benchmark.py
+scripts/       CLI entry points: run_pipeline.py, train_detector.py, eval_*.py, export_*.py, build_engine.py,
+               benchmark_backends.py
 ros2_ws/src/
   perception_msgs/   msg definitions (ament_cmake)
   perception_ros/    bridge, perception, decision nodes + conversions + launch files (ament_python)
@@ -245,6 +252,8 @@ pyproject.toml   `pip install -e .` makes `perception` importable from scripts, 
 | --- | --- | --- |
 | One `perception_node` running all model stages in-process (plus `carla_bridge_node` and `decision_node`) | Each CUDA process costs ~300–500 MB of VRAM; one process avoids that overhead on a 6 GB GPU and needs no timestamp syncing between topics. Modularity is kept in code through interfaces + registry. | One node per stage |
 | Own `InferenceBackend` layer for MiDaS and the lane model; YOLO through Ultralytics, wrapped behind `Detector` | Ultralytics already runs `.pt` / `.onnx` / `.engine`, so rewriting YOLO pre/post-processing and NMS adds work without changing the benchmark results | Custom backends for every model |
+| TensorRT FP16 engines for deployment, built per machine | FP16 is where most of the speed-up comes from on the RTX 3050 (the Depth Anything ViT gains little from TensorRT in FP32), while mAP, lane IoU and distance error stay within noise of FP32 | INT8 (needs a calibration set, and accuracy has to be re-validated for every model); ONNX Runtime alone (smaller gains, more GPU memory) |
+| Normalisation and the lane softmax folded into the exported graph (raw `uint8` input) | Once the networks are fast, per-pixel float conversion on the CPU and the 4x larger copy become a visible share of the frame time; inside the engine they fuse into the first and last layers | GPU preprocessing in the stages (ties the stages to PyTorch / CUDA) |
 | OmegaConf + dataclasses + registry for config | Typed, validated configs with command-line overrides (`tracker.type=deepsort`), so each comparison is a one-line command | Plain YAML (no overrides); Hydra (changes the working directory per run, awkward with ROS launch) |
 | Perception runs in WSL2 next to ROS2; CARLA runs natively on Windows | ROS nodes import the pipeline directly; the only cross-OS link is the CARLA client's TCP connection on `localhost`. TensorRT engines are built in WSL because they are tied to the platform they are built on. | Models on Windows with results sent across to ROS |
 | src layout (`src/perception/`) | The package is only importable once installed, so tests, scripts and ROS nodes all use the installed package and packaging mistakes show up early | Package folder at the repo root |
